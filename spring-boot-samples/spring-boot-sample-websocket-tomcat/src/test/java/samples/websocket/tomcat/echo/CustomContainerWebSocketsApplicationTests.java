@@ -1,11 +1,11 @@
 /*
- * Copyright 2012-2017 the original author or authors.
+ * Copyright 2012-2019 the original author or authors.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
+ *      https://www.apache.org/licenses/LICENSE-2.0
  *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,8 +22,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import samples.websocket.tomcat.SampleTomcatWebSocketApplication;
 import samples.websocket.tomcat.client.GreetingService;
 import samples.websocket.tomcat.client.SimpleClientWebSocketHandler;
@@ -37,36 +36,35 @@ import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.web.embedded.tomcat.TomcatServletWebServerFactory;
+import org.springframework.boot.web.server.LocalServerPort;
 import org.springframework.boot.web.servlet.server.ServletWebServerFactory;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.util.SocketUtils;
 import org.springframework.web.socket.client.WebSocketConnectionManager;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-@RunWith(SpringRunner.class)
-@SpringBootTest(classes = { SampleTomcatWebSocketApplication.class,
-		CustomContainerConfiguration.class }, webEnvironment = WebEnvironment.DEFINED_PORT)
-@DirtiesContext
-public class CustomContainerWebSocketsApplicationTests {
+@SpringBootTest(
+		classes = { SampleTomcatWebSocketApplication.class,
+				CustomContainerConfiguration.class },
+		webEnvironment = WebEnvironment.RANDOM_PORT)
+class CustomContainerWebSocketsApplicationTests {
 
 	private static Log logger = LogFactory
 			.getLog(CustomContainerWebSocketsApplicationTests.class);
 
-	private static int PORT = SocketUtils.findAvailableTcpPort();
+	@LocalServerPort
+	private int port;
 
 	@Test
-	public void echoEndpoint() throws Exception {
+	void echoEndpoint() {
 		ConfigurableApplicationContext context = new SpringApplicationBuilder(
 				ClientConfiguration.class, PropertyPlaceholderAutoConfiguration.class)
-						.properties("websocket.uri:ws://localhost:" + PORT
+						.properties("websocket.uri:ws://localhost:" + this.port
 								+ "/ws/echo/websocket")
-						.run("--spring.main.web_environment=false");
+						.run("--spring.main.web-application-type=none");
 		long count = context.getBean(ClientConfiguration.class).latch.getCount();
 		AtomicReference<String> messagePayloadReference = context
 				.getBean(ClientConfiguration.class).messagePayload;
@@ -77,12 +75,12 @@ public class CustomContainerWebSocketsApplicationTests {
 	}
 
 	@Test
-	public void reverseEndpoint() throws Exception {
+	void reverseEndpoint() {
 		ConfigurableApplicationContext context = new SpringApplicationBuilder(
 				ClientConfiguration.class, PropertyPlaceholderAutoConfiguration.class)
-						.properties(
-								"websocket.uri:ws://localhost:" + PORT + "/ws/reverse")
-						.run("--spring.main.web_environment=false");
+						.properties("websocket.uri:ws://localhost:" + this.port
+								+ "/ws/reverse")
+						.run("--spring.main.web-application-type=none");
 		long count = context.getBean(ClientConfiguration.class).latch.getCount();
 		AtomicReference<String> messagePayloadReference = context
 				.getBean(ClientConfiguration.class).messagePayload;
@@ -91,17 +89,17 @@ public class CustomContainerWebSocketsApplicationTests {
 		assertThat(messagePayloadReference.get()).isEqualTo("Reversed: !dlrow olleH");
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	protected static class CustomContainerConfiguration {
 
 		@Bean
 		public ServletWebServerFactory webServerFactory() {
-			return new TomcatServletWebServerFactory("/ws", PORT);
+			return new TomcatServletWebServerFactory("/ws", 0);
 		}
 
 	}
 
-	@Configuration
+	@Configuration(proxyBeanMethods = false)
 	static class ClientConfiguration implements CommandLineRunner {
 
 		@Value("${websocket.uri}")
